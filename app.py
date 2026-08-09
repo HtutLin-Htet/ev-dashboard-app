@@ -310,7 +310,7 @@ def show_car_details(car_row):
 # ---------------------------------------------------------
 # 6. MAIN NAVIGATION TABS
 # ---------------------------------------------------------
-st.title("⚡ Advanced EV Analytics & Database Recommender Portal")
+st.title("⚡ Ev Finder & Recommendation Portal")
 
 tab1, tab2, tab3, tab_trip, tab_loan, tab4, tab_admin = st.tabs([
     "🚗 EV Finder & Comparison", 
@@ -326,113 +326,278 @@ tab1, tab2, tab3, tab_trip, tab_loan, tab4, tab_admin = st.tabs([
 # TAB 1: EV SEARCH & COMPARISON
 # ---------------------------------------------------------
 with tab1:
+    # ------------------ 🛠️ FONTS & METRIC SIZE FIX ------------------
+    # Streamlit metrics တွေ စာလုံး မဆန့်ဘဲ ပုံပျက်/အရမ်းကြီးသွားခြင်းမှ ကာကွယ်ရန် CSS
+    st.markdown(
+        """
+        <style>
+        /* Top Header Labels (e.g., Avg Price ($), Avg Price (သိန်း)) */
+        [data-testid="stMetricLabel"] {
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            white-space: nowrap !important;
+        }
+        
+        /* Main Metric Values (e.g., $35,000, 1,200.0 သိန်း) */
+        [data-testid="stMetricValue"] {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    # -----------------------------------------------------------------
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Vehicles Found", len(filtered_df))
-    col2.metric("Avg Price ($)", f"${filtered_df['Price_USD'].mean():,.0f}" if not filtered_df.empty else "N/A")
-    col3.metric("Avg Price (သိန်း)", f"{filtered_df['Price_MMK_Lakhs'].mean():,.1f} သိန်း" if not filtered_df.empty else "N/A")
-    col4.metric("Fastest Fast Charge", f"{filtered_df['FastCharge_KW'].max()} kW" if not filtered_df.empty else "N/A")
+    col2.metric(
+        "Avg Price ($)",
+        (
+            f"${filtered_df['Price_USD'].mean():,.0f}"
+            if not filtered_df.empty
+            else "N/A"
+        ),
+    )
+    col3.metric(
+        "Avg Price (သိန်း)",
+        (
+            f"{filtered_df['Price_MMK_Lakhs'].mean():,.1f} သိန်း"
+            if not filtered_df.empty
+            else "N/A"
+        ),
+    )
+    col4.metric(
+        "Fastest Fast Charge",
+        (
+            f"{filtered_df['FastCharge_KW'].max()} kW"
+            if not filtered_df.empty
+            else "N/A"
+        ),
+    )
 
     st.markdown("---")
-    view_option = st.radio("View Mode:", ["📋 Data Table", "📄 Clean List View", "📊 Side-by-Side Comparison Matrix", "🕸️ Radar Comparison Mode"], horizontal=True)
+    view_option = st.radio(
+        "View Mode:",
+        [
+            "📋 Data Table",
+            "📄 Clean List View",
+            "📊 Side-by-Side Comparison Matrix",
+            "🕸️ Radar Comparison Mode",
+        ],
+        horizontal=True,
+    )
 
     if not filtered_df.empty:
         if view_option == "📋 Data Table":
-            display_cols = ['Image', 'Brand', 'Model', 'Seats', 'Price_USD', 'Price_MMK_Lakhs', 'Price_CNY', 'Range_KM', 'Battery_kWh', 'FastCharge_KW']
-            if 'Price_Tier' in filtered_df.columns:
-                display_cols.append('Price_Tier')
+            display_cols = [
+                "Image",
+                "Brand",
+                "Model",
+                "Seats",
+                "Price_USD",
+                "Price_MMK_Lakhs",
+                "Price_CNY",
+                "Range_KM",
+                "Battery_kWh",
+                "FastCharge_KW",
+            ]
+            if "Price_Tier" in filtered_df.columns:
+                display_cols.append("Price_Tier")
 
             st.dataframe(
                 filtered_df[display_cols],
                 column_config={
                     "Image": st.column_config.ImageColumn("Photo"),
-                    "Price_USD": st.column_config.NumberColumn("Price ($)", format="$%d"),
-                    "Price_MMK_Lakhs": st.column_config.NumberColumn("Price (သိန်း)", format="%.1f သိန်း"),
-                    "Price_CNY": st.column_config.NumberColumn("Price (CNY)", format="¥%.2f"),
-                    "Range_KM": st.column_config.NumberColumn("Range", format="%d km"),
+                    "Price_USD": st.column_config.NumberColumn(
+                        "Price ($)", format="$%d"
+                    ),
+                    "Price_MMK_Lakhs": st.column_config.NumberColumn(
+                        "Price (သိန်း)", format="%.1f သိန်း"
+                    ),
+                    "Price_CNY": st.column_config.NumberColumn(
+                        "Price (CNY)", format="¥%.2f"
+                    ),
+                    "Range_KM": st.column_config.NumberColumn(
+                        "Range", format="%d km"
+                    ),
                 },
                 hide_index=True,
-                use_container_width=True
+                use_container_width=True,
             )
         elif view_option == "📄 Clean List View":
             for idx, row in filtered_df.reset_index().iterrows():
                 st.subheader(f"🚘 {row['Brand']} {row['Model']}")
                 img_col, info_col = st.columns([1, 2])
                 with img_col:
-                    st.image(row['Image'], use_container_width=True)
+                    st.image(row["Image"], use_container_width=True)
                 with info_col:
-                    st.markdown(f"**Price:** `${row['Price_USD']:,}` | **{row['Price_MMK_Lakhs']:,.1f} သိန်း** | `¥{row['Price_CNY']:,.2f}`")
-                    st.markdown(f"**Range:** `{row['Range_KM']} km` | **Battery:** `{row['Battery_kWh']} kWh` | **0-100:** `{row['Acceleration_0_100']}s`")
-                    
-                    full_name = row.get('Full_Name', f"{row['Brand']} {row['Model']}")
-                    if st.button(f"🔍 View Details - {full_name}", key=f"btn_{row['Model']}_{idx}"):
+                    st.markdown(
+                        f"**Price:** `${row['Price_USD']:,}` | **{row['Price_MMK_Lakhs']:,.1f} သိန်း** | `¥{row['Price_CNY']:,.2f}`"
+                    )
+                    st.markdown(
+                        f"**Range:** `{row['Range_KM']} km` | **Battery:** `{row['Battery_kWh']} kWh` | **0-100:** `{row['Acceleration_0_100']}s`"
+                    )
+
+                    full_name = row.get(
+                        "Full_Name", f"{row['Brand']} {row['Model']}"
+                    )
+                    if st.button(
+                        f"🔍 View Details - {full_name}",
+                        key=f"btn_{row['Model']}_{idx}",
+                    ):
                         show_car_details(row)
                 st.divider()
 
         elif view_option == "📊 Side-by-Side Comparison Matrix":
             st.subheader("📊 Detailed Side-by-Side Feature Comparison")
-            all_names = df['Full_Name'].tolist() if ('Full_Name' in df.columns and not df.empty) else []
-            selected_cars = st.multiselect("ယှဉ်ပြိုင်ကြည့်ရှုလိုသည့် EV ကားများကို ရွေးချယ်ပါ (Max 4):", options=all_names, default=all_names[:3] if len(all_names)>=3 else all_names, max_selections=4)
-            
+            all_names = (
+                df["Full_Name"].tolist()
+                if ("Full_Name" in df.columns and not df.empty)
+                else []
+            )
+            selected_cars = st.multiselect(
+                "ယှဉ်ပြိုင်ကြည့်ရှုလိုသည့် EV ကားများကို ရွေးချယ်ပါ (Max 4):",
+                options=all_names,
+                default=(
+                    all_names[:3] if len(all_names) >= 3 else all_names
+                ),
+                max_selections=4,
+            )
+
             if selected_cars:
-                matrix_df = df[df['Full_Name'].isin(selected_cars)].copy()
-                
-                matrix_df['Price (USD)'] = matrix_df['Price_USD'].apply(lambda x: f"${x:,}")
-                matrix_df['Price (သိန်း)'] = matrix_df['Price_MMK_Lakhs'].apply(lambda x: f"{x:,.1f} သိန်း")
-                matrix_df['Driving Range'] = matrix_df['Range_KM'].apply(lambda x: f"{x} km")
-                matrix_df['Battery Capacity'] = matrix_df['Battery_kWh'].apply(lambda x: f"{x} kWh")
-                matrix_df['Fast Charge Speed'] = matrix_df['FastCharge_KW'].apply(lambda x: f"{x} kW")
-                matrix_df['0-100 Acceleration'] = matrix_df['Acceleration_0_100'].apply(lambda x: f"{x} s")
-                matrix_df['Seating Capacity'] = matrix_df['Seats'].apply(lambda x: f"{x} Seats")
-                
-                display_features = ['Price (USD)', 'Price (သိန်း)', 'Driving Range', 'Battery Capacity', 'Fast Charge Speed', '0-100 Acceleration', 'Seating Capacity']
-                
-                transposed_matrix = matrix_df.set_index('Full_Name')[display_features].T
+                matrix_df = df[df["Full_Name"].isin(selected_cars)].copy()
+
+                matrix_df["Price (USD)"] = matrix_df["Price_USD"].apply(
+                    lambda x: f"${x:,}"
+                )
+                matrix_df["Price (သိန်း)"] = matrix_df[
+                    "Price_MMK_Lakhs"
+                ].apply(lambda x: f"{x:,.1f} သိန်း")
+                matrix_df["Driving Range"] = matrix_df["Range_KM"].apply(
+                    lambda x: f"{x} km"
+                )
+                matrix_df["Battery Capacity"] = matrix_df["Battery_kWh"].apply(
+                    lambda x: f"{x} kWh"
+                )
+                matrix_df["Fast Charge Speed"] = matrix_df[
+                    "FastCharge_KW"
+                ].apply(lambda x: f"{x} kW")
+                matrix_df["0-100 Acceleration"] = matrix_df[
+                    "Acceleration_0_100"
+                ].apply(lambda x: f"{x} s")
+                matrix_df["Seating Capacity"] = matrix_df["Seats"].apply(
+                    lambda x: f"{x} Seats"
+                )
+
+                display_features = [
+                    "Price (USD)",
+                    "Price (သိန်း)",
+                    "Driving Range",
+                    "Battery Capacity",
+                    "Fast Charge Speed",
+                    "0-100 Acceleration",
+                    "Seating Capacity",
+                ]
+
+                transposed_matrix = matrix_df.set_index("Full_Name")[
+                    display_features
+                ].T
                 st.dataframe(transposed_matrix, use_container_width=True)
             else:
-                st.info("အနည်းဆုံး ကား ၁ စီး စာရင်းထဲတွင် ရွေးချယ်ပေးပါ၊")
+                st.info(
+                    "အနည်းဆုံး ကား ၁ စီး စာရင်းထဲတွင် ရွေးချယ်ပေးပါ၊"
+                )
 
         elif view_option == "🕸️ Radar Comparison Mode":
-            all_names = df['Full_Name'].tolist() if ('Full_Name' in df.columns and not df.empty) else []
-            selected_cars = st.multiselect("Select EVs to Compare (Max 3 Recommended):", options=all_names, default=all_names[:2] if len(all_names)>=2 else all_names)
-            
+            all_names = (
+                df["Full_Name"].tolist()
+                if ("Full_Name" in df.columns and not df.empty)
+                else []
+            )
+            selected_cars = st.multiselect(
+                "Select EVs to Compare (Max 3 Recommended):",
+                options=all_names,
+                default=(
+                    all_names[:2] if len(all_names) >= 2 else all_names
+                ),
+            )
+
             if len(selected_cars) >= 2:
                 radar_df = df.copy()
-                radar_df['Price_Affordability'] = radar_df['Price_USD'].max() - radar_df['Price_USD']
-                radar_df['Acceleration_Perf'] = radar_df['Acceleration_0_100'].max() - radar_df['Acceleration_0_100']
-                
-                norm_scaler = MinMaxScaler(feature_range=(10, 100))
-                radar_df[['Range_KM_N', 'Battery_kWh_N', 'FastCharge_KW_N', 'Price_N', 'Accel_N']] = norm_scaler.fit_transform(
-                    radar_df[['Range_KM', 'Battery_kWh', 'FastCharge_KW', 'Price_Affordability', 'Acceleration_Perf']]
+                radar_df["Price_Affordability"] = (
+                    radar_df["Price_USD"].max() - radar_df["Price_USD"]
                 )
-                
-                categories = ['Range (Distance)', 'Battery Size', 'Fast Charging', 'Affordability', 'Acceleration']
+                radar_df["Acceleration_Perf"] = (
+                    radar_df["Acceleration_0_100"].max()
+                    - radar_df["Acceleration_0_100"]
+                )
+
+                norm_scaler = MinMaxScaler(feature_range=(10, 100))
+                radar_df[
+                    [
+                        "Range_KM_N",
+                        "Battery_kWh_N",
+                        "FastCharge_KW_N",
+                        "Price_N",
+                        "Accel_N",
+                    ]
+                ] = norm_scaler.fit_transform(
+                    radar_df[
+                        [
+                            "Range_KM",
+                            "Battery_kWh",
+                            "FastCharge_KW",
+                            "Price_Affordability",
+                            "Acceleration_Perf",
+                        ]
+                    ]
+                )
+
+                categories = [
+                    "Range (Distance)",
+                    "Battery Size",
+                    "Fast Charging",
+                    "Affordability",
+                    "Acceleration",
+                ]
                 fig_radar = go.Figure()
-                
+
                 for car_name in selected_cars:
-                    car_data = radar_df[radar_df['Full_Name'] == car_name].iloc[0]
+                    car_data = radar_df[
+                        radar_df["Full_Name"] == car_name
+                    ].iloc[0]
                     values = [
-                        car_data['Range_KM_N'], car_data['Battery_kWh_N'], 
-                        car_data['FastCharge_KW_N'], car_data['Price_N'], car_data['Accel_N']
+                        car_data["Range_KM_N"],
+                        car_data["Battery_kWh_N"],
+                        car_data["FastCharge_KW_N"],
+                        car_data["Price_N"],
+                        car_data["Accel_N"],
                     ]
                     values.append(values[0])
-                    
-                    fig_radar.add_trace(go.Scatterpolar(
-                        r=values,
-                        theta=categories + [categories[0]],
-                        fill='toself',
-                        name=car_name
-                    ))
+
+                    fig_radar.add_trace(
+                        go.Scatterpolar(
+                            r=values,
+                            theta=categories + [categories[0]],
+                            fill="toself",
+                            name=car_name,
+                        )
+                    )
 
                 fig_radar.update_layout(
                     polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
                     showlegend=True,
-                    title="🕸️ EV Specification Radar Comparison (Normalized Benchmarking)"
+                    title=(
+                        "🕸️ EV Specification Radar Comparison (Normalized"
+                        " Benchmarking)"
+                    ),
                 )
-                
+
                 st.plotly_chart(fig_radar, use_container_width=True)
     else:
         st.warning("No vehicles match your search criteria.")
-
 # ---------------------------------------------------------
 # TAB 2: COSINE SIMILARITY RECOMMENDER
 # ---------------------------------------------------------
