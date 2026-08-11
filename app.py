@@ -446,7 +446,7 @@ with tab1:
     st.markdown("---")
     view_option = st.radio(
         "View Mode:",
-        ["📋 Data Table", "📄 Clean List View (Responsive Cards)", "📊 Side-by-Side Comparison Matrix"],
+        ["📋 Data Table", "📄 Cars", "📊 Side-by-Side Comparison Matrix"],
         horizontal=True,
     )
 
@@ -476,7 +476,7 @@ with tab1:
             )
 
         # RESPONSIVE HTML/CSS CARDS VIEW WITH PAGINATION
-        elif view_option == "📄 Clean List View (Responsive Cards)":
+        elif view_option == "📄 Cars":
             items_per_page = 6
             total_items = len(filtered_df)
             total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
@@ -552,7 +552,7 @@ with tab1:
 # ---------------------------------------------------------
 with tab2:
     st.subheader("🧠 Machine Learning Nearest-Neighbors Recommender")
-    st.write("သင်ကြိုက်နှစ်သက်သည့် EV ကားကို ရွေးချယ်ပါ - ML Algorithm မှ Vector Space တွက်ချက်မှုအပေါ် မူတည်၍ **အလားတူဆုံး ကား (၃) စီး** ကို ရှာဖွေပြသပေးပါမည်။")
+    st.write("သင်ကြိုက်နှစ်သက်သည့် EV ကားကို ရွေးချယ်ပါ - Specifications အတူဆုံး ကား (၃) စီး** ကို ရှာဖွေပြသပေးပါမည်။")
 
     if not df.empty and nn_model is not None and 'Full_Name' in df.columns:
         target_car = st.selectbox("🎯 Target Vehicle ရွေးချယ်ပါ:", options=df['Full_Name'].tolist())
