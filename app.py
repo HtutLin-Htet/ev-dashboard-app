@@ -4,10 +4,10 @@ import numpy as np
 from sqlalchemy import create_engine, text
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 
 # ---------------------------------------------------------
 # 1. PAGE CONFIGURATION
@@ -18,6 +18,62 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS for Responsive Cards & Styling
+st.markdown("""
+<style>
+    .ev-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ev-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        border-color: #007bff;
+    }
+    .ev-card img {
+        border-radius: 8px;
+        object-fit: cover;
+        width: 100%;
+        height: 180px;
+    }
+    .ev-card-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }
+    .ev-badge {
+        background-color: #eef2ff;
+        color: #4f46e5;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 6px;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    .ev-price {
+        font-size: 18px;
+        font-weight: 700;
+        color: #059669;
+        margin-bottom: 8px;
+    }
+    .ev-spec-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        font-size: 13px;
+        color: #4b5563;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ---------------------------------------------------------
 # 2. POSTGRESQL CONNECTION & INITIALIZATION
 # ---------------------------------------------------------
@@ -26,7 +82,6 @@ def get_db_engine():
     try:
         if "postgres" in st.secrets:
             db_config = st.secrets["postgres"]
-            
             if "url" in db_config:
                 database_url = db_config["url"]
             else:
@@ -39,11 +94,7 @@ def get_db_engine():
         else:
             database_url = "sqlite:///ev_database.db"
             
-        engine = create_engine(
-            database_url,
-            pool_pre_ping=True,
-            pool_recycle=300
-        )
+        engine = create_engine(database_url, pool_pre_ping=True, pool_recycle=300)
         return engine
     except Exception as e:
         st.error(f"❌ Database Connection Error: {e}")
@@ -74,7 +125,6 @@ def init_db():
     try:
         with engine.begin() as conn:
             conn.execute(text(create_table_query))
-            # Column မရှိသေးပါက တိုက်ရိုက်ထည့်သွင်းပေးခြင်း (Migration safety)
             conn.execute(text("ALTER TABLE ev_vehicles ADD COLUMN IF NOT EXISTS fastcharge_min_10_80 INT DEFAULT 0;"))
     except Exception:
         pass
@@ -100,9 +150,7 @@ def seed_default_data_if_empty():
                     ('https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&h=400&fit=crop', 'Kia', 'EV9 AWD', 7, 78000, 505, 99.8, 2565, 210, 6.0, 24),
                     ('https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600&h=400&fit=crop', 'BMW', 'i4 eDrive40', 5, 64500, 590, 80.7, 2125, 205, 5.7, 31),
                     ('https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=600&h=400&fit=crop', 'Porsche', 'Taycan', 4, 110000, 470, 93.4, 2295, 270, 3.7, 22),
-                    ('https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&h=400&fit=crop', 'Lucid', 'Air GT', 5, 140000, 685, 118.0, 2360, 300, 3.0, 20),
-                    ('https://images.unsplash.com/photo-1606152421802-db97b9c7a11b?w=600&h=400&fit=crop', 'Audi', 'Q4 e-tron', 5, 57500, 420, 82.0, 2125, 175, 6.2, 29),
-                    ('https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=600&h=400&fit=crop', 'Mercedes', 'EQE 350', 5, 75000, 550, 89.0, 2355, 170, 6.4, 32)
+                    ('https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&h=400&fit=crop', 'Lucid', 'Air GT', 5, 140000, 685, 118.0, 2360, 300, 3.0, 20)
                 ]
                 insert_query = text("""
                     INSERT INTO ev_vehicles (image_url, brand, model, seats, price_usd, range_km, battery_kwh, weight_kg, fastcharge_kw, acceleration_0_100, fastcharge_min_10_80)
@@ -160,7 +208,6 @@ def process_ml_pipeline():
     if 'Full_Name' not in df.columns:
         df['Full_Name'] = df['Brand'].astype(str) + ' ' + df['Model'].astype(str)
 
-    # Admin မှ တိုက်ရိုက်ရိုက်မထည့်ထားပါက (၀ ဖြစ်နေပါက) Auto-Calculate ပြုလုပ်ခြင်း
     if 'FastCharge_Min_10_80' not in df.columns:
         df['FastCharge_Min_10_80'] = 0
 
@@ -192,12 +239,6 @@ def process_ml_pipeline():
     df['Price_Tier'] = df['Cluster'].map(tier_mapping)
     centroids_df['Price_Tier'] = centroids_df['Cluster'].map(tier_mapping)
     centroids_df = centroids_df.sort_values(by='Price_USD').reset_index(drop=True)
-
-    n_components = min(2, len(df))
-    pca = PCA(n_components=n_components)
-    pca_coords = pca.fit_transform(X_scaled)
-    df['PCA1'] = pca_coords[:, 0]
-    df['PCA2'] = pca_coords[:, 1] if n_components > 1 else 0
     
     n_neighbors = min(4, len(df))
     nn_model = NearestNeighbors(n_neighbors=n_neighbors, metric='cosine')
@@ -206,12 +247,6 @@ def process_ml_pipeline():
     return df, centroids_df, scaler, features, X_scaled, nn_model
 
 df, centroids_df, scaler, feature_cols, X_scaled, nn_model = process_ml_pipeline()
-
-if not df.empty and 'Full_Name' not in df.columns:
-    df['Full_Name'] = df['Brand'].astype(str) + ' ' + df['Model'].astype(str)
-
-if df.empty or len(df) < 2:
-    st.warning("⚠️ Machine Learning Analytics များ လုပ်ဆောင်နိုင်ရန် Database ထဲတွင် EV Data အနည်းဆုံး (၂) စီး ရှိရပါမည်။ Admin Panel မှ Data ထပ်မံထည့်သွင်းပေးပါ။")
 
 # ---------------------------------------------------------
 # 4. SIDEBAR: CURRENCY & DYNAMIC FILTERS
@@ -233,7 +268,7 @@ if not df.empty:
 st.sidebar.markdown("---")
 st.sidebar.header("🔍 Dynamic Filters")
 
-currency_mode = st.sidebar.radio("Filter Price By:", ["USD ($)", "MMK (သိန်း)"])
+currency_mode = st.sidebar.radio("Filter Price By:", ["USD ($)", "MMK (သိန်း)"], key="filter_curr_mode")
 
 if not df.empty:
     min_price_val = int(df['Price_USD'].min())
@@ -247,43 +282,43 @@ if not df.empty:
         max_lakhs_val = min_lakhs_val + 100
 
     if currency_mode == "USD ($)":
-        min_price, max_price = st.sidebar.slider("Price Range ($ USD):", min_value=min_price_val, max_value=max_price_val, value=(min_price_val, max_price_val), step=1000)
+        min_price, max_price = st.sidebar.slider("Price Range ($ USD):", min_value=min_price_val, max_value=max_price_val, value=(min_price_val, max_price_val), step=1000, key="filter_price_usd")
         filter_mask = (df['Price_USD'] >= min_price) & (df['Price_USD'] <= max_price)
     else:
-        min_lakhs, max_lakhs = st.sidebar.slider("Price Range (ကျပ် သိန်းပေါင်း):", min_value=min_lakhs_val, max_value=max_lakhs_val, value=(min_lakhs_val, max_lakhs_val), step=100)
+        min_lakhs, max_lakhs = st.sidebar.slider("Price Range (ကျပ် သိန်းပေါင်း):", min_value=min_lakhs_val, max_value=max_lakhs_val, value=(min_lakhs_val, max_lakhs_val), step=100, key="filter_price_mmk")
         filter_mask = (df['Price_MMK_Lakhs'] >= min_lakhs) & (df['Price_MMK_Lakhs'] <= max_lakhs)
 
-    tier_option = st.sidebar.radio("Price Tier:", options=["All Tiers", "Low (Budget)", "Medium (Mid-Range)", "High (Luxury/Performance)"])
+    tier_option = st.sidebar.radio("Price Tier:", options=["All Tiers", "Low (Budget)", "Medium (Mid-Range)", "High (Luxury/Performance)"], key="filter_tier")
     seat_options = ["All Seats"] + sorted(df['Seats'].unique().tolist())
-    selected_seat = st.sidebar.selectbox("Seats (ထိုင်ခုံ အရေအတွက်):", options=seat_options)
+    selected_seat = st.sidebar.selectbox("Seats (ထိုင်ခုံ အရေအတွက်):", options=seat_options, key="filter_seats")
 
     min_r_val = int(df['Range_KM'].min())
     max_r_val = int(df['Range_KM'].max())
     if min_r_val == max_r_val:
         max_r_val = min_r_val + 50
-    min_range = st.sidebar.slider("Minimum Range (KM):", min_value=min_r_val, max_value=max_r_val, value=min_r_val, step=25)
+    min_range = st.sidebar.slider("Minimum Range (KM):", min_value=min_r_val, max_value=max_r_val, value=min_r_val, step=25, key="filter_range")
 
     min_b_val = int(df['Battery_kWh'].min())
     max_b_val = int(df['Battery_kWh'].max())
     if min_b_val == max_b_val:
         max_b_val = min_b_val + 10
-    min_battery = st.sidebar.slider("Minimum Battery (kWh):", min_value=min_b_val, max_value=max_b_val, value=min_b_val, step=5)
+    min_battery = st.sidebar.slider("Minimum Battery (kWh):", min_value=min_b_val, max_value=max_b_val, value=min_b_val, step=5, key="filter_battery")
 
     st.sidebar.markdown("---")
-    st.sidebar.subheader("⚡ Charging & Performance Filters")
+    st.sidebar.subheader("⚡ Charging & Performance")
 
     min_fc_val = int(df['FastCharge_KW'].min())
     max_fc_val = int(df['FastCharge_KW'].max())
     if min_fc_val == max_fc_val:
         max_fc_val = min_fc_val + 10
-    min_fastcharge = st.sidebar.slider("Minimum Fast Charge Speed (kW):", min_value=min_fc_val, max_value=max_fc_val, value=min_fc_val, step=10)
+    min_fastcharge = st.sidebar.slider("Minimum Fast Charge Speed (kW):", min_value=min_fc_val, max_value=max_fc_val, value=min_fc_val, step=10, key="filter_fc_kw")
 
     if 'FastCharge_Min_10_80' in df.columns:
         min_time_val = int(df['FastCharge_Min_10_80'].min())
         max_time_val = int(df['FastCharge_Min_10_80'].max())
         if min_time_val == max_time_val:
             max_time_val = min_time_val + 5
-        max_charge_time = st.sidebar.slider("Max Charging Time 10-80% (Minutes):", min_value=min_time_val, max_value=max_time_val, value=max_time_val, step=5)
+        max_charge_time = st.sidebar.slider("Max Charging Time 10-80% (Mins):", min_value=min_time_val, max_value=max_time_val, value=max_time_val, step=5, key="filter_fc_time")
     else:
         max_charge_time = None
 
@@ -291,7 +326,7 @@ if not df.empty:
     max_acc_val = float(df['Acceleration_0_100'].max())
     if min_acc_val == max_acc_val:
         max_acc_val = min_acc_val + 1.0
-    max_acceleration = st.sidebar.slider("Max Acceleration 0-100 km/h (Seconds):", min_value=min_acc_val, max_value=max_acc_val, value=max_acc_val, step=0.5)
+    max_acceleration = st.sidebar.slider("Max Accel 0-100 km/h (Secs):", min_value=min_acc_val, max_value=max_acc_val, value=max_acc_val, step=0.5, key="filter_accel")
 
     filtered_df = df[
         filter_mask & 
@@ -317,7 +352,7 @@ else:
 @st.dialog("⚡ EV Full Profile & Benchmark Analytics", width="large")
 def show_car_details(car_row):
     st.markdown(f"## 🚘 {car_row['Brand']} {car_row['Model']}")
-    st.markdown(f"🏷️ Class Category: **{car_row.get('Price_Tier', 'N/A')}** |**{car_row['Seats']} Seats**")
+    st.markdown(f"🏷️ Class Category: **{car_row.get('Price_Tier', 'N/A')}** | **{car_row['Seats']} Seats**")
     
     col_img, col_quick = st.columns([1.2, 1])
     with col_img:
@@ -351,18 +386,28 @@ def show_car_details(car_row):
         c2.write(f"⏱️ **10-80% Charging Time:** {car_row.get('FastCharge_Min_10_80', 'N/A')} mins")
         c2.write(f"🚀 **0-100 km/h:** {car_row['Acceleration_0_100']}s")
 
+# Helper function for Input Validation
+def validate_url(url):
+    regex = re.compile(
+        r'^(?:http|ftp)s?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    return re.match(regex, url) is not None
+
 # ---------------------------------------------------------
 # 6. MAIN NAVIGATION TABS
 # ---------------------------------------------------------
-st.title("⚡ Ev Finder & Recommendation Portal")
+st.title("⚡ EV Finder & Recommendation Portal")
 
-tab1, tab2, tab3, tab_trip, tab_loan, tab4, tab_admin = st.tabs([
+tab1, tab2, tab3, tab_trip, tab_loan, tab_admin = st.tabs([
     "🚗 EV Finder & Comparison", 
     "🧠 Cosine Recommender", 
     "💡 TCO Analysis", 
     "🛣️ Trip & Route Calculator",
     "🏦 EMI Loan Calculator",
-    "📈 3D & PCA Analytics",
     "🛠️ Admin Management"
 ])
 
@@ -373,75 +418,43 @@ with tab1:
     st.markdown(
         """
         <style>
-        [data-testid="stMetricLabel"] {
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            white-space: nowrap !important;
-        }
-        [data-testid="stMetricValue"] {
-            font-size: 18px !important;
-            font-weight: 700 !important;
-            white-space: nowrap !important;
-        }
+        [data-testid="stMetricLabel"] { font-size: 15px !important; font-weight: 600 !important; }
+        [data-testid="stMetricValue"] { font-size: 18px !important; font-weight: 700 !important; }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     col1.metric("Vehicles Found", len(filtered_df))
-    col2.metric(
-        "Avg Price ($)",
-        (
-            f"${filtered_df['Price_USD'].mean():,.0f}"
-            if not filtered_df.empty
-            else "N/A"
-        ),
-    )
-    col3.metric(
-        "Avg Price (သိန်း)",
-        (
-            f"{filtered_df['Price_MMK_Lakhs'].mean():,.1f} သိန်း"
-            if not filtered_df.empty
-            else "N/A"
-        ),
-    )
-    col4.metric(
-        "Fastest Fast Charge",
-        (
-            f"{filtered_df['FastCharge_KW'].max()} kW"
-            if not filtered_df.empty
-            else "N/A"
-        ),
-    )
+    col2.metric("Avg Price ($)", f"${filtered_df['Price_USD'].mean():,.0f}" if not filtered_df.empty else "N/A")
+    col3.metric("Fastest Fast Charge", f"{filtered_df['FastCharge_KW'].max()} kW" if not filtered_df.empty else "N/A")
+    
+    # CSV DOWNLOAD BUTTON
+    with col4:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if not filtered_df.empty:
+            csv_data = filtered_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download CSV Report",
+                data=csv_data,
+                file_name="EV_Filtered_Data.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 
     st.markdown("---")
     view_option = st.radio(
         "View Mode:",
-        [
-            "📋 Data Table",
-            "📄 Clean List View",
-            "📊 Side-by-Side Comparison Matrix",
-            "🕸️ Radar Comparison Mode",
-        ],
+        ["📋 Data Table", "📄 Clean List View (Responsive Cards)", "📊 Side-by-Side Comparison Matrix"],
         horizontal=True,
     )
 
     if not filtered_df.empty:
         if view_option == "📋 Data Table":
             display_cols = [
-                "Image",
-                "Brand",
-                "Model",
-                "Seats",
-                "Price_USD",
-                "Price_MMK_Lakhs",
-                "Price_CNY",
-                "Range_KM",
-                "Battery_kWh",
-                "FastCharge_KW",
-                "FastCharge_Min_10_80",
-                "Acceleration_0_100"
+                "Image", "Brand", "Model", "Seats", "Price_USD", "Price_MMK_Lakhs",
+                "Price_CNY", "Range_KM", "Battery_kWh", "FastCharge_KW", "FastCharge_Min_10_80", "Acceleration_0_100"
             ]
             if "Price_Tier" in filtered_df.columns:
                 display_cols.append("Price_Tier")
@@ -461,29 +474,47 @@ with tab1:
                 hide_index=True,
                 use_container_width=True,
             )
-        elif view_option == "📄 Clean List View":
-            for idx, row in filtered_df.reset_index().iterrows():
-                st.subheader(f"🚘 {row['Brand']} {row['Model']}")
-                img_col, info_col = st.columns([1, 2])
-                with img_col:
-                    st.image(row["Image"], use_container_width=True)
-                with info_col:
-                    st.markdown(
-                        f"**Price:** `${row['Price_USD']:,}` | **{row['Price_MMK_Lakhs']:,.1f} သိန်း** | `¥{row['Price_CNY']:,.2f}`"
-                    )
-                    st.markdown(
-                        f"**Range:** `{row['Range_KM']} km` | **Battery:** `{row['Battery_kWh']} kWh` | **Charge Time:** `{row.get('FastCharge_Min_10_80', 'N/A')} mins` | **0-100:** `{row['Acceleration_0_100']}s`"
-                    )
 
-                    full_name = row.get(
-                        "Full_Name", f"{row['Brand']} {row['Model']}"
-                    )
-                    if st.button(
-                        f"🔍 View Details - {full_name}",
-                        key=f"btn_{row['Model']}_{idx}",
-                    ):
+        # RESPONSIVE HTML/CSS CARDS VIEW WITH PAGINATION
+        elif view_option == "📄 Clean List View (Responsive Cards)":
+            items_per_page = 6
+            total_items = len(filtered_df)
+            total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
+
+            col_p1, col_p2, _ = st.columns([1.5, 2, 4])
+            with col_p1:
+                page_num = st.number_input("📌 Page Select:", min_value=1, max_value=total_pages, value=1, step=1)
+            with col_p2:
+                st.markdown(f"<br><b>Page {page_num} of {total_pages}</b> (Total Vehicles: {total_items})", unsafe_allow_html=True)
+
+            start_idx = (page_num - 1) * items_per_page
+            end_idx = start_idx + items_per_page
+            page_df = filtered_df.iloc[start_idx:end_idx].reset_index(drop=True)
+
+            st.markdown("---")
+
+            # Render Cards in 3-column Grid Layout
+            card_cols = st.columns(3)
+            for idx, row in page_df.iterrows():
+                col_target = card_cols[idx % 3]
+                with col_target:
+                    st.markdown(f"""
+                    <div class="ev-card">
+                        <img src="{row['Image']}" alt="{row['Brand']}">
+                        <div class="ev-card-title">{row['Brand']} {row['Model']}</div>
+                        <span class="ev-badge">{row.get('Price_Tier', 'N/A')} • {row['Seats']} Seats</span>
+                        <div class="ev-price">${row['Price_USD']:,} <span style="font-size:14px; color:#6b7280;">({row['Price_MMK_Lakhs']:,.1f} သိန်း)</span></div>
+                        <div class="ev-spec-grid">
+                            <div>🛣️ Range: <b>{row['Range_KM']} km</b></div>
+                            <div>🔋 Battery: <b>{row['Battery_kWh']} kWh</b></div>
+                            <div>⚡ Fast Charge: <b>{row['FastCharge_KW']} kW</b></div>
+                            <div>⏱️ 10-80%: <b>{row.get('FastCharge_Min_10_80', 'N/A')} mins</b></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"🔍 View Specs", key=f"card_btn_{row['id']}_{idx}"):
                         show_car_details(row)
-                st.divider()
 
         elif view_option == "📊 Side-by-Side Comparison Matrix":
             st.subheader("📊 Detailed Side-by-Side Feature Comparison")
@@ -497,7 +528,6 @@ with tab1:
 
             if selected_cars:
                 matrix_df = df[df["Full_Name"].isin(selected_cars)].copy()
-
                 matrix_df["Price (USD)"] = matrix_df["Price_USD"].apply(lambda x: f"${x:,}")
                 matrix_df["Price (သိန်း)"] = matrix_df["Price_MMK_Lakhs"].apply(lambda x: f"{x:,.1f} သိန်း")
                 matrix_df["Driving Range"] = matrix_df["Range_KM"].apply(lambda x: f"{x} km")
@@ -508,69 +538,12 @@ with tab1:
                 matrix_df["Seating Capacity"] = matrix_df["Seats"].apply(lambda x: f"{x} Seats")
 
                 display_features = [
-                    "Price (USD)",
-                    "Price (သိန်း)",
-                    "Driving Range",
-                    "Battery Capacity",
-                    "Fast Charge Speed",
-                    "Charge Time 10-80%",
-                    "0-100 Acceleration",
-                    "Seating Capacity",
+                    "Price (USD)", "Price (သိန်း)", "Driving Range", "Battery Capacity",
+                    "Fast Charge Speed", "Charge Time 10-80%", "0-100 Acceleration", "Seating Capacity"
                 ]
 
                 transposed_matrix = matrix_df.set_index("Full_Name")[display_features].T
                 st.dataframe(transposed_matrix, use_container_width=True)
-            else:
-                st.info("အနည်းဆုံး ကား ၁ စီး စာရင်းထဲတွင် ရွေးချယ်ပေးပါ၊")
-
-        elif view_option == "🕸️ Radar Comparison Mode":
-            all_names = df["Full_Name"].tolist() if ("Full_Name" in df.columns and not df.empty) else []
-            selected_cars = st.multiselect(
-                "Select EVs to Compare (Max 3 Recommended):",
-                options=all_names,
-                default=(all_names[:2] if len(all_names) >= 2 else all_names),
-            )
-
-            if len(selected_cars) >= 2:
-                radar_df = df.copy()
-                radar_df["Price_Affordability"] = radar_df["Price_USD"].max() - radar_df["Price_USD"]
-                radar_df["Acceleration_Perf"] = radar_df["Acceleration_0_100"].max() - radar_df["Acceleration_0_100"]
-
-                norm_scaler = MinMaxScaler(feature_range=(10, 100))
-                radar_df[["Range_KM_N", "Battery_kWh_N", "FastCharge_KW_N", "Price_N", "Accel_N"]] = norm_scaler.fit_transform(
-                    radar_df[["Range_KM", "Battery_kWh", "FastCharge_KW", "Price_Affordability", "Acceleration_Perf"]]
-                )
-
-                categories = ["Range (Distance)", "Battery Size", "Fast Charging", "Affordability", "Acceleration"]
-                fig_radar = go.Figure()
-
-                for car_name in selected_cars:
-                    car_data = radar_df[radar_df["Full_Name"] == car_name].iloc[0]
-                    values = [
-                        car_data["Range_KM_N"],
-                        car_data["Battery_kWh_N"],
-                        car_data["FastCharge_KW_N"],
-                        car_data["Price_N"],
-                        car_data["Accel_N"],
-                    ]
-                    values.append(values[0])
-
-                    fig_radar.add_trace(
-                        go.Scatterpolar(
-                            r=values,
-                            theta=categories + [categories[0]],
-                            fill="toself",
-                            name=car_name,
-                        )
-                    )
-
-                fig_radar.update_layout(
-                    polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-                    showlegend=True,
-                    title="🕸️ EV Specification Radar Comparison (Normalized Benchmarking)",
-                )
-
-                st.plotly_chart(fig_radar, use_container_width=True)
     else:
         st.warning("No vehicles match your search criteria.")
 
@@ -650,12 +623,8 @@ with tab3:
 
     fig_break = go.Figure()
     fig_break.add_trace(go.Scatter(x=years, y=gas_cumulative, mode='lines+markers', name='Gas Vehicle Cumulative Cost'))
-    fig_break.add_trace(go.Scatter(x=years, y=ev_cumulative, mode='lines+markers', name='EV Vehicle Cumulative Cost (With Premium)'))
-    fig_break.update_layout(
-        title="📈 Cumulative Cost Comparison over 10 Years (Breakeven Plot)",
-        xaxis_title="Years of Ownership",
-        yaxis_title="Total Cost (MMK)"
-    )
+    fig_break.add_trace(go.Scatter(x=years, y=ev_cumulative, mode='lines+markers', name='EV Vehicle Cumulative Cost'))
+    fig_break.update_layout(title="📈 Cumulative Cost Comparison over 10 Years", xaxis_title="Years of Ownership", yaxis_title="Total Cost (MMK)")
     st.plotly_chart(fig_break, use_container_width=True)
 
 # ---------------------------------------------------------
@@ -663,20 +632,16 @@ with tab3:
 # ---------------------------------------------------------
 with tab_trip:
     st.subheader("🛣️ EV Trip & Route Range Calculator")
-    st.write("ခရီးစဉ်အကွာအဝေးကို ရိုက်ထည့်၍ မိမိရွေးချယ်ထားသော EV ကားဖြင့် လမ်းခရီး အားသွင်းစရိတ်နှင့် ကြာချိန်ကို တွက်ချက်ပါ။")
-
     if not df.empty and 'Full_Name' in df.columns:
         trip_col1, trip_col2 = st.columns(2)
         with trip_col1:
             selected_trip_car = st.selectbox("🚘 မောင်းနှင်မည့် EV ကားကို ရွေးချယ်ပါ:", options=df['Full_Name'].tolist(), key="trip_car")
             trip_distance = st.number_input("📍 သွားရောက်မည့် ခရီးစဉ်အကွာအဝေး Total Distance (KM):", value=450, step=10)
-            traffic_factor = st.slider("🚦 လမ်းခရီး/ရာသီဥတု သက်ရောက်မှု (Buffer Efficiency %):", min_value=70, max_value=100, value=85, help="၈၅% ထားပါက လေအေးပေးစက်နှင့် လမ်းပိတ်မှုကြောင့် Range ၁၅% လျော့ကျမည်ဟု တွက်ချက်ပါသည်")
+            traffic_factor = st.slider("🚦 လမ်းခရီး/ရာသီဥတု သက်ရောက်မှု (Buffer Efficiency %):", min_value=70, max_value=100, value=85)
             
         car_data = df[df['Full_Name'] == selected_trip_car].iloc[0]
         effective_range = car_data['Range_KM'] * (traffic_factor / 100.0)
-        
-        needed_charges = int(np.ceil(trip_distance / effective_range)) - 1
-        needed_charges = max(0, needed_charges)
+        needed_charges = max(0, int(np.ceil(trip_distance / effective_range)) - 1)
         
         kwh_per_km = car_data['Battery_kWh'] / car_data['Range_KM'] if car_data['Range_KM'] > 0 else 0.15
         total_kwh_needed = trip_distance * kwh_per_km
@@ -684,153 +649,98 @@ with tab_trip:
         
         with trip_col2:
             st.markdown(f"#### 📊 Trip Summary: {car_data['Full_Name']}")
-            st.write(f"🔋 **Effective Single-Charge Range:** `{effective_range:.0f} KM` (Max Spec: {car_data['Range_KM']} KM)")
+            st.write(f"🔋 **Effective Range:** `{effective_range:.0f} KM` (Max: {car_data['Range_KM']} KM)")
             
             res_col1, res_col2 = st.columns(2)
-            res_col1.metric("⚡ လမ်းခရီး အားသွင်းရမည့် အကြိမ်အရေအတွက်", f"{needed_charges} ကြိမ်")
+            res_col1.metric("⚡ လမ်းခရီး အားသွင်းရမည့် အကြိမ်", f"{needed_charges} ကြိမ်")
             res_col2.metric("💰 ခန့်မှန်း အားသွင်းစရိတ်", f"{estimated_trip_cost:,.0f} MMK")
 
             if needed_charges > 0:
                 st.info(f"💡 ခရီးစဉ်မပြီးဆုံးမီ လမ်းခရီးတွင် အနည်းဆုံး **{needed_charges} ကြိမ်** DC Fast Charger ၌ အားသွင်းရန် လိုအပ်ပါမည်။")
             else:
-                st.success("🎉 အားတစ်ကြိမ် အပြည့်သွင်းရုံဖြင့် ခရီးစဉ်ဆုံးသည်ထိ အေးဆေးမောင်းနှင်နိုင်ပါသည်။")
-    else:
-        st.info("Database ထဲတွင် Data မရှိသေးပါ။")
+                st.success("🎉 အားတစ်ကြိမ် အပြည့်သွင်းရုံဖြင့် ခရီးစဉ်ဆုံးသည်ထိ မောင်းနှင်နိုင်ပါသည်။")
 
 # ---------------------------------------------------------
 # TAB LOAN & FINANCING EMI CALCULATOR
 # ---------------------------------------------------------
 with tab_loan:
     st.subheader("🏦 EV Loan & Financing EMI Calculator")
-    st.write("EV ကားများအား ဘဏ် / Finance ဖြင့် အရစ်ကျ ဝယ်ယူပါက လစဉ် ပေးသွင်းရမည့် အမြတ်+အရင်း (EMI) ကို တွက်ချက်ပါ။")
-
     loan_col1, loan_col2 = st.columns(2)
     with loan_col1:
         if not df.empty and 'Full_Name' in df.columns:
             loan_car = st.selectbox("🚘 ဝယ်ယူလိုသော EV ကား ရွေးပါ:", options=df['Full_Name'].tolist(), key="loan_car")
             car_price_mmk = df[df['Full_Name'] == loan_car]['Price_MMK'].values[0]
-            car_price_lakhs = car_price_mmk / 100000
-            st.info(f"💵 **{loan_car}** ဈေးနှုန်း: **{car_price_lakhs:,.1f} သိန်း** ({car_price_mmk:,.0f} MMK)")
+            st.info(f"💵 ဈေးနှုန်း: **{car_price_mmk/100000:,.1f} သိန်း** ({car_price_mmk:,.0f} MMK)")
         else:
             car_price_mmk = 100000000
 
-        down_payment_pct = st.slider("💰 Down Payment (%) ကနဦး ပေးသွင်းငွေ:", min_value=10, max_value=50, value=30, step=5)
-        interest_rate_ann = st.number_input("📈 နှစ်စဉ် တိုးတက်အတိုးနှုန်း Annual Interest Rate (%):", value=13.0, step=0.5)
+        down_payment_pct = st.slider("💰 Down Payment (%):", min_value=10, max_value=50, value=30, step=5)
+        interest_rate_ann = st.number_input("📈 နှစ်စဉ် အတိုးနှုန်း Annual Interest Rate (%):", value=13.0, step=0.5)
         loan_years = st.selectbox("📅 ချေးငွေ သက်တမ်း (Years):", options=[1, 2, 3, 4, 5], index=2)
 
     down_payment_amount = car_price_mmk * (down_payment_pct / 100.0)
     loan_amount = car_price_mmk - down_payment_amount
-    
     monthly_rate = (interest_rate_ann / 100) / 12
     months = loan_years * 12
     
-    if monthly_rate > 0:
-        emi = loan_amount * (monthly_rate * (1 + monthly_rate)**months) / ((1 + monthly_rate)**months - 1)
-    else:
-        emi = loan_amount / months
-
-    total_payment = down_payment_amount + (emi * months)
+    emi = loan_amount * (monthly_rate * (1 + monthly_rate)**months) / ((1 + monthly_rate)**months - 1) if monthly_rate > 0 else loan_amount / months
     total_interest = (emi * months) - loan_amount
 
     with loan_col2:
         st.markdown("#### 💳 Payment Breakdown")
-        st.metric("ကနဦး ပေးသွင်းရမည့်ငွေ (Down Payment)", f"{down_payment_amount/100000:,.1f} သိန်း ({down_payment_amount:,.0f} MMK)")
+        st.metric("ကနဦး ပေးသွင်းရမည့်ငွေ (Down Payment)", f"{down_payment_amount/100000:,.1f} သိန်း")
         st.metric("လစဉ် ပေးသွင်းရမည့်ငွေ (Monthly EMI)", f"{emi/100000:,.2f} သိန်း ({emi:,.0f} MMK)")
         st.metric("စုစုပေါင်း အတိုးစရိတ် (Total Interest)", f"{total_interest/100000:,.1f} သိန်း")
-
-        fig_pie = px.pie(
-            names=['Down Payment', 'Principal Loan Amount', 'Total Interest Cost'],
-            values=[down_payment_amount, loan_amount, total_interest],
-            title="📊 Total Outflow Breakdown Structure",
-            hole=0.4
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-# ---------------------------------------------------------
-# TAB 4: 3D & PCA VISUAL ANALYTICS
-# ---------------------------------------------------------
-with tab4:
-    st.subheader("📈 Advanced 3D & PCA Dimensionality Visual Analytics")
-
-    if not df.empty and 'Price_Tier' in df.columns:
-        ch_a, ch_b = st.columns(2)
-        with ch_a:
-            st.write("#### 🧊 3D Scatter Plot (Price vs Range vs FastCharge)")
-            fig_3d = px.scatter_3d(
-                df, x="Price_USD", y="Range_KM", z="FastCharge_KW",
-                color="Price_Tier", hover_name="Full_Name" if "Full_Name" in df.columns else "Brand", size="Battery_kWh",
-                labels={"Price_USD": "Price ($)", "Range_KM": "Range (KM)", "FastCharge_KW": "FastCharge (kW)"}
-            )
-            st.plotly_chart(fig_3d, use_container_width=True)
-
-        with ch_b:
-            st.write("#### 🧬 PCA 2D Clustering Projection")
-            fig_pca = px.scatter(
-                df, x="PCA1", y="PCA2", color="Price_Tier",
-                hover_name="Full_Name" if "Full_Name" in df.columns else "Brand", text="Brand",
-                labels={"PCA1": "Principal Component 1", "PCA2": "Principal Component 2"}
-            )
-            fig_pca.update_traces(textposition="top center")
-            st.plotly_chart(fig_pca, use_container_width=True)
 
 # ---------------------------------------------------------
 # TAB 5: POSTGRESQL ADMIN MANAGEMENT PANEL
 # ---------------------------------------------------------
 with tab_admin:
     st.subheader("🛠️ PostgreSQL Admin Management Panel")
-    
     admin_pass = st.text_input("🔐 Admin Password ထည့်သွင်းပါ:", type="password", key="admin_pass_input")
     expected_pass = st.secrets.get("admin", {}).get("password", "admin123")
     
     if admin_pass == expected_pass:
         st.success("✅ Admin Authorization Approved!")
         
-        admin_sub_tab1, admin_sub_tab2, admin_sub_tab3 = st.tabs([
-            "📥 Bulk CSV/Excel Upload", 
-            "➕ Add Single Vehicle", 
-            "🗄️ Manage PostgreSQL Records"
+        admin_sub_tab1, admin_sub_tab2, admin_sub_tab3, admin_sub_tab4 = st.tabs([
+            "📥 Bulk CSV Upload", 
+            "➕ Add Vehicle", 
+            "✏️ Edit Vehicle Record",
+            "🗄️ Manage Records"
         ])
         
         # --- SUB TAB 1: BULK CSV UPLOAD ---
         with admin_sub_tab1:
-            st.markdown("#### CSV သို့မဟုတ် Excel File မှတစ်ဆင့် Data များ Bulk Upload တင်ရန်")
             uploaded_file = st.file_uploader("Upload CSV / XLSX File", type=['csv', 'xlsx'])
-            
             if uploaded_file is not None:
-                if uploaded_file.name.endswith('.csv'):
-                    upload_df = pd.read_csv(uploaded_file)
-                else:
-                    upload_df = pd.read_excel(uploaded_file)
-                
-                st.write("📋 **Preview Upload Data:**")
+                upload_df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
                 st.dataframe(upload_df.head(5), use_container_width=True)
-                
                 if st.button("🚀 PostgreSQL သို့ Data များ တိုက်ရိုက် Upload တင်မည်"):
                     try:
                         db_col_map = {
                             'Image': 'image_url', 'Brand': 'brand', 'Model': 'model', 'Seats': 'seats',
                             'Price_USD': 'price_usd', 'Range_KM': 'range_km', 'Battery_kWh': 'battery_kwh',
                             'Weight_KG': 'weight_kg', 'FastCharge_KW': 'fastcharge_kw', 'Acceleration_0_100': 'acceleration_0_100',
-                            'FastCharge_Min_10_80': 'fastcharge_min_10_80', 'Charging_Time': 'fastcharge_min_10_80'
+                            'FastCharge_Min_10_80': 'fastcharge_min_10_80'
                         }
                         upload_df.rename(columns=db_col_map, inplace=True)
                         upload_df.to_sql('ev_vehicles', con=engine, if_exists='append', index=False)
-                        
-                        st.session_state['noti_msg'] = f"📥 Bulk Data ({len(upload_df)} စီး) ကို Database ထဲသို့ အောင်မြင်စွာ Upload တင်ပြီးပါပြီ!"
+                        st.session_state['noti_msg'] = f"📥 Bulk Data ({len(upload_df)} စီး) ကို Upload တင်ပြီးပါပြီ!"
                         st.cache_data.clear()
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Upload Error: {e}")
 
-        # --- SUB TAB 2: ADD SINGLE VEHICLE WITH CHARGING TIME INPUT ---
+        # --- SUB TAB 2: ADD VEHICLE WITH INPUT VALIDATION ---
         with admin_sub_tab2:
-            st.markdown("#### EV Vehicle Data အသစ်တစ်ခုချင်းစီ ထည့်သွင်းရန်")
+            st.markdown("#### EV Vehicle Data အသစ် ထည့်သွင်းရန် (Validation ပါဝင်သည်)")
             with st.form("add_single_ev_form", clear_on_submit=True):
                 col_a, col_b = st.columns(2)
                 with col_a:
                     brand = st.text_input("Brand (ဥပမာ - BYD)")
                     model = st.text_input("Model (ဥပမာ - Atto 3)")
-                    seats = st.number_input("Seats (ထိုင်ခုံ)", min_value=1, max_value=10, value=5)
+                    seats = st.number_input("Seats", min_value=1, max_value=10, value=5)
                     price_usd = st.number_input("Price ($ USD)", min_value=0.0, step=500.0, value=38000.0)
                     range_km = st.number_input("Range (KM)", min_value=0, step=10, value=420)
                 
@@ -838,16 +748,19 @@ with tab_admin:
                     battery_kwh = st.number_input("Battery (kWh)", min_value=0.0, step=1.0, value=60.4)
                     weight_kg = st.number_input("Weight (KG)", min_value=0, step=50, value=1750)
                     fastcharge_kw = st.number_input("Fast Charge Speed (kW)", min_value=0, step=5, value=88)
-                    # ⚡⚡⚡ CHARGING TIME INPUT FOR ADMIN ⚡⚡⚡
-                    fastcharge_min_10_80 = st.number_input("Charging Time 10-80% (Minutes)", min_value=0, step=1, value=30, help="၀ ထားပါက Battery capacity နှင့် FastCharge Speed အပေါ် မူတည်၍ Auto တွက်ချက်ပေးပါမည်")
+                    fastcharge_min_10_80 = st.number_input("Charging Time 10-80% (Mins)", min_value=0, step=1, value=30)
                     acceleration = st.number_input("0-100 km/h (s)", min_value=0.0, step=0.1, value=7.3)
                     image_url = st.text_input("Image URL Link", value="https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=600&h=400&fit=crop")
                 
                 submit_ev = st.form_submit_button("💾 Save to Database")
                 
                 if submit_ev:
-                    if not brand or not model:
-                        st.warning("⚠️ Brand နှင့် Model နာမည် ဖြည့်သွင်းပေးရန် လိုအပ်ပါသည်။")
+                    if not brand.strip() or not model.strip():
+                        st.error("⚠️ Brand နှင့် Model အမည် ဖြည့်သွင်းရန် လိုအပ်ပါသည်။")
+                    elif not validate_url(image_url):
+                        st.error("⚠️ မှန်ကန်သော Image URL Link (http/https) ထည့်သွင်းပေးပါ။")
+                    elif price_usd <= 0 or range_km <= 0 or battery_kwh <= 0:
+                        st.error("⚠️ Price, Range နှင့် Battery Value များသည် 0 ထက် ကြီးရပါမည်။")
                     else:
                         insert_query = text("""
                             INSERT INTO ev_vehicles (image_url, brand, model, seats, price_usd, range_km, battery_kwh, weight_kg, fastcharge_kw, acceleration_0_100, fastcharge_min_10_80)
@@ -861,32 +774,84 @@ with tab_admin:
                                     'weight_kg': weight_kg, 'fastcharge_kw': fastcharge_kw, 'acceleration': acceleration,
                                     'fastcharge_min_10_80': fastcharge_min_10_80
                                 })
-                            
-                            st.session_state['noti_msg'] = f"🎉 🚘 {brand} {model} ကို Database ထဲသို့ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ!"
+                            st.session_state['noti_msg'] = f"🎉 🚘 {brand} {model} ကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ!"
                             st.cache_data.clear()
                             st.rerun()
                         except Exception as e:
-                            st.error(f"❌ Error: {e}")
+                            st.error(f"❌ Database Error: {e}")
 
-        # --- SUB TAB 3: DELETE & MANAGE RECORDS WITH NOTIFICATION ---
+        # --- SUB TAB 3: RECORD EDIT & UPDATE OPTION ---
         with admin_sub_tab3:
-            st.markdown("#### 🗄️ Database Record များကို စစ်ဆေးခြင်းနှင့် ဖျက်ထုတ်ခြင်း")
-            if st.button("🔄 Refresh Table"):
-                st.cache_data.clear()
-                st.rerun()
+            st.markdown("#### ✏️ Existing Vehicle Data ပြင်ဆင်ရန် (Update Record)")
+            current_db_df = load_data_from_db()
+            
+            if not current_db_df.empty:
+                car_options = {f"ID {row['id']}: {row['Brand']} {row['Model']}": row['id'] for _, row in current_db_df.iterrows()}
+                selected_car_str = st.selectbox("✏️ ပြင်ဆင်လိုသည့် EV ကားကို ရွေးချယ်ပါ:", options=list(car_options.keys()))
+                selected_id = car_options[selected_car_str]
+                
+                # Fetch row details
+                edit_row = current_db_df[current_db_df['id'] == selected_id].iloc[0]
+                
+                with st.form("edit_ev_form"):
+                    col_e1, col_e2 = st.columns(2)
+                    with col_e1:
+                        e_brand = st.text_input("Brand", value=str(edit_row['Brand']))
+                        e_model = st.text_input("Model", value=str(edit_row['Model']))
+                        e_seats = st.number_input("Seats", min_value=1, max_value=10, value=int(edit_row['Seats']))
+                        e_price = st.number_input("Price ($ USD)", min_value=0.0, value=float(edit_row['Price_USD']))
+                        e_range = st.number_input("Range (KM)", min_value=0, value=int(edit_row['Range_KM']))
+                    
+                    with col_e2:
+                        e_battery = st.number_input("Battery (kWh)", min_value=0.0, value=float(edit_row['Battery_kWh']))
+                        e_weight = st.number_input("Weight (KG)", min_value=0, value=int(edit_row['Weight_KG']))
+                        e_fc_kw = st.number_input("Fast Charge (kW)", min_value=0, value=int(edit_row['FastCharge_KW']))
+                        e_fc_min = st.number_input("Charge Time 10-80% (Mins)", min_value=0, value=int(edit_row.get('FastCharge_Min_10_80', 30)))
+                        e_accel = st.number_input("0-100 km/h (s)", min_value=0.0, value=float(edit_row['Acceleration_0_100']))
+                        e_img = st.text_input("Image URL Link", value=str(edit_row['Image']))
+                    
+                    btn_update = st.form_submit_button("🔄 Update Data")
+                    
+                    if btn_update:
+                        if not e_brand.strip() or not e_model.strip():
+                            st.error("⚠️ Brand နှင့် Model အမည် ဖြည့်သွင်းရန် လိုအပ်ပါသည်။")
+                        elif not validate_url(e_img):
+                            st.error("⚠️ မှန်ကန်သော Image URL Link ထည့်သွင်းပေးပါ။")
+                        else:
+                            update_query = text("""
+                                UPDATE ev_vehicles 
+                                SET brand=:brand, model=:model, seats=:seats, price_usd=:price, 
+                                    range_km=:range, battery_kwh=:battery, weight_kg=:weight, 
+                                    fastcharge_kw=:fc_kw, fastcharge_min_10_80=:fc_min, 
+                                    acceleration_0_100=:accel, image_url=:img
+                                WHERE id=:id
+                            """)
+                            try:
+                                with engine.begin() as conn:
+                                    conn.execute(update_query, {
+                                        'brand': e_brand, 'model': e_model, 'seats': e_seats, 'price': e_price,
+                                        'range': e_range, 'battery': e_battery, 'weight': e_weight, 'fc_kw': e_fc_kw,
+                                        'fc_min': e_fc_min, 'accel': e_accel, 'img': e_img, 'id': selected_id
+                                    })
+                                st.session_state['noti_msg'] = f"🎉 Record ID ({selected_id}) ကို အောင်မြင်စွာ Update ပြုလုပ်ပြီးပါပြီ!"
+                                st.cache_data.clear()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Update Error: {e}")
 
+        # --- SUB TAB 4: DELETE RECORDS ---
+        with admin_sub_tab4:
+            st.markdown("#### 🗄️ Database Record ဖျက်ထုတ်ခြင်း")
             current_db_df = load_data_from_db()
             st.dataframe(current_db_df, use_container_width=True)
 
             st.divider()
-            st.markdown("##### 🗑️ Record ဖျက်ရန်")
             delete_id = st.number_input("ဖျက်လိုသော ID ရိုက်ထည့်ပါ:", min_value=1, step=1)
             if st.button("❌ Record ကို ဖျက်မည်"):
                 try:
                     with engine.begin() as conn:
                         conn.execute(text("DELETE FROM ev_vehicles WHERE id = :id"), {'id': delete_id})
-                    
-                    st.session_state['noti_msg'] = f"🗑️ Record ID ({delete_id}) ကို Database ထဲမှ ဖျက်ပြီးပါပြီ!"
+                    st.session_state['noti_msg'] = f"🗑️ Record ID ({delete_id}) ကို ဖျက်ပြီးပါပြီ!"
                     st.cache_data.clear()
                     st.rerun()
                 except Exception as e:
