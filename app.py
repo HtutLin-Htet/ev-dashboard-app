@@ -566,7 +566,7 @@ df, centroids_df, scaler, feature_cols, X_scaled, nn_model = (
 # ---------------------------------------------------------
 # 4. SIDEBAR: SEARCH, SORT & DYNAMIC FILTERS
 # ---------------------------------------------------------
-st.sidebar.header("💱 Currency Exchange Rates")
+st.sidebar.header("Currency Exchange Rates")
 usd_to_mmk = st.sidebar.number_input(
     "USD to MMK (မြန်မာကျပ်):", value=4500, step=50
 )
