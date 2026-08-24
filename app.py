@@ -19,69 +19,96 @@ st.set_page_config(
     layout="wide",
 )
 
-# Compare လုပ်ရန် ကားများ မှတ်ထားမည့် Session State
 if "selected_compare" not in st.session_state:
   st.session_state["selected_compare"] = []
 
-# Custom CSS
+# Custom CSS (Equal Card Height & Flex Alignment Fix)
 st.markdown(
     """
 <style>
+    /* Column အလိုက် Card အမြင့် တညီတညွတ်တည်း ဖြစ်စေရန် */
+    div[data-testid="stColumn"] {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    div[data-testid="stColumn"] > div {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
     .ev-card {
-        background-color: #ffffff;
+        background-color: #ffffff !important;
         border: 1px solid #e0e0e0;
         border-radius: 12px;
         padding: 16px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        box-sizing: border-box;
     }
-    .ev-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-        border-color: #007bff;
-    }
+
     .ev-card img {
         border-radius: 8px;
         object-fit: cover;
         width: 100%;
-        height: 180px;
+        height: 170px;
     }
+
+    /* Title ကို Fixed Height 2 Lines သတ်မှတ်ပေးခြင်း */
     .ev-card-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: #1f2937;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1f2937 !important;
         margin-top: 10px;
-        margin-bottom: 5px;
+        margin-bottom: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        height: 44px; /* ၁ ကြောင်းတည်း ဖြစ်နေလျှင်လည်း ၂ ကြောင်းစာ အမြင့်အတိုင်း ပုံသေယူမည် */
+        line-height: 1.3;
+        word-break: break-word;
     }
+
+    /* Rating Badge အမြင့် ပုံသေထားခြင်း */
+    .rating-badge {
+        color: #f59e0b !important;
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 6px;
+        height: 20px;
+    }
+
     .ev-badge {
-        background-color: #eef2ff;
-        color: #4f46e5;
+        background-color: #eef2ff !important;
+        color: #4f46e5 !important;
         font-size: 12px;
         font-weight: 600;
         padding: 4px 8px;
         border-radius: 6px;
         display: inline-block;
-        margin-bottom: 10px;
-    }
-    .ev-price {
-        font-size: 18px;
-        font-weight: 700;
-        color: #059669;
         margin-bottom: 8px;
     }
+
+    .ev-price {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: #059669 !important;
+        margin-bottom: 8px;
+        height: 26px;
+    }
+
     .ev-spec-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 6px;
-        font-size: 13px;
-        color: #4b5563;
-    }
-    .rating-badge {
-        color: #f59e0b;
-        font-weight: bold;
-        font-size: 14px;
-        margin-bottom: 6px;
+        font-size: 12.5px;
+        color: #4b5563 !important;
     }
 </style>
 """,
@@ -242,7 +269,7 @@ def seed_default_data_if_empty():
             (
                 "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=600&h=400&fit=crop",
                 "Tesla",
-                "Model 3 LR",
+                "Model 3 Long Range Dual Motor All-Wheel Drive Performance",
                 5,
                 55000,
                 533,
@@ -281,7 +308,7 @@ def seed_default_data_if_empty():
             (
                 "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600&h=400&fit=crop",
                 "Kia",
-                "EV9 AWD",
+                "EV9 AWD GT-Line Performance Edition",
                 7,
                 78000,
                 505,
@@ -294,7 +321,7 @@ def seed_default_data_if_empty():
             (
                 "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600&h=400&fit=crop",
                 "BMW",
-                "i4 eDrive40",
+                "i4 eDrive40 Gran Coupe",
                 5,
                 64500,
                 590,
@@ -307,7 +334,7 @@ def seed_default_data_if_empty():
             (
                 "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=600&h=400&fit=crop",
                 "Porsche",
-                "Taycan",
+                "Taycan Turbo S",
                 4,
                 110000,
                 470,
@@ -320,7 +347,7 @@ def seed_default_data_if_empty():
             (
                 "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=600&h=400&fit=crop",
                 "Lucid",
-                "Air GT",
+                "Air Grand Touring Performance Edition",
                 5,
                 140000,
                 685,
@@ -566,7 +593,7 @@ df, centroids_df, scaler, feature_cols, X_scaled, nn_model = (
 # ---------------------------------------------------------
 # 4. SIDEBAR: SEARCH, SORT & DYNAMIC FILTERS
 # ---------------------------------------------------------
-st.sidebar.header("Currency Exchange Rates")
+st.sidebar.header("💱 Currency Exchange Rates")
 usd_to_mmk = st.sidebar.number_input(
     "USD to MMK (မြန်မာကျပ်):", value=4500, step=50
 )
@@ -988,19 +1015,30 @@ def validate_url(url):
 # ---------------------------------------------------------
 # 6. MAIN NAVIGATION TABS
 # ---------------------------------------------------------
-st.title("⚡ EV Finder & Recommendation Portal")
+st.title("⚡ FluxDrive EV Recommendation")
 
-tab1, tab2, tab3, tab_trip, tab_loan, tab_admin = st.tabs([
-    "🚗 EV Finder & Catalog",
-    "🧠 Smart Recommender",
-    "💡 TCO Analysis",
-    "🛣️ Trip & Route Calculator",
-    "🏦 EMI Loan Calculator",
-    "🛠️ Admin Management",
-])
+is_admin_url = st.query_params.get("admin") == "true"
+
+if is_admin_url:
+  tab1, tab2, tab3, tab_trip, tab_loan, tab_admin = st.tabs([
+      "🚗 EV Finder & Catalog",
+      "🧠 Smart Recommender",
+      "💡 TCO Analysis",
+      "🛣️ Trip & Route Calculator",
+      "🏦 EMI Loan Calculator",
+      "🛠️ Admin Management",
+  ])
+else:
+  tab1, tab2, tab3, tab_trip, tab_loan = st.tabs([
+      "🚗 EV Finder & Catalog",
+      "🧠 Smart Recommender",
+      "💡 TCO Analysis",
+      "🛣️ Trip & Route Calculator",
+      "🏦 EMI Loan Calculator",
+  ])
 
 # ---------------------------------------------------------
-# TAB 1: EV SEARCH & CATALOG WITH STREAMLIT FRAGMENT (NO FULL PAGE RELOAD)
+# TAB 1: EV SEARCH & CATALOG
 # ---------------------------------------------------------
 with tab1:
   st.markdown(
@@ -1042,7 +1080,6 @@ with tab1:
 
   st.markdown("---")
 
-  # Streamlit Fragment ကို သုံးထားသဖြင့် Compare နှိပ်ပါက စာမျက်နှာ ထိပ်ဆုံးသို့ Reload ပြန်မတက်ဘဲ Component ဧရိယာသာ Update ဖြစ်ပါမည်။
   @st.fragment
   def render_ev_catalog(data_df):
     if not data_df.empty:
@@ -1079,29 +1116,34 @@ with tab1:
 
         avg_rating = row.get("Avg_Rating", 0)
         review_cnt = int(row.get("Review_Count", 0))
-        stars = (
-            "⭐" * int(round(avg_rating))
-            if avg_rating > 0
-            else "⭐ No Ratings"
-        )
-        rating_label = (
-            f"{stars} ({avg_rating:.1f})" if avg_rating > 0 else stars
-        )
+
+        if avg_rating > 0:
+          rating_label = (
+              f"{'⭐' * int(round(avg_rating))} ({avg_rating:.1f}) • <span"
+              f" style='font-size:12px; color:#6b7280;'>({review_cnt} reviews)</span>"
+          )
+        else:
+          rating_label = (
+              "⭐ No Ratings • <span style='font-size:12px;"
+              f" color:#6b7280;'>({review_cnt} reviews)</span>"
+          )
 
         with col_target:
           st.markdown(
               f"""
                     <div class="ev-card">
-                        <img src="{row['Image']}" alt="{row['Brand']}">
-                        <div class="ev-card-title">{row['Brand']} {row['Model']}</div>
-                        <div class="rating-badge">{rating_label} • <span style="font-size:12px; color:#6b7280;">({review_cnt} reviews)</span></div>
-                        <span class="ev-badge">{row.get('Price_Tier', 'N/A')} • {row['Seats']} Seats</span>
-                        <div class="ev-price">${row['Price_USD']:,} <span style="font-size:14px; color:#6b7280;">({row['Price_MMK_Lakhs']:,.1f} သိန်း)</span></div>
-                        <div class="ev-spec-grid">
-                            <div>🛣️ Range: <b>{row['Range_KM']} km</b></div>
-                            <div>🔋 Battery: <b>{row['Battery_kWh']} kWh</b></div>
-                            <div>⚡ Fast Charge: <b>{row['FastCharge_KW']} kW</b></div>
-                            <div>⏱️ 10-80%: <b>{row.get('FastCharge_Min_10_80', 'N/A')} mins</b></div>
+                        <div>
+                            <img src="{row['Image']}" alt="{row['Brand']}">
+                            <div class="ev-card-title">{row['Brand']} {row['Model']}</div>
+                            <div class="rating-badge">{rating_label}</div>
+                            <div><span class="ev-badge">{row.get('Price_Tier', 'N/A')} • {row['Seats']} Seats</span></div>
+                            <div class="ev-price">${row['Price_USD']:,} <span style="font-size:13px; color:#6b7280; font-weight:normal;">({row['Price_MMK_Lakhs']:,.1f} သိန်း)</span></div>
+                            <div class="ev-spec-grid">
+                                <div>🛣️ Range: <b>{row['Range_KM']} km</b></div>
+                                <div>🔋 Battery: <b>{row['Battery_kWh']} kWh</b></div>
+                                <div>⚡ Fast Charge: <b>{row['FastCharge_KW']} kW</b></div>
+                                <div>⏱️ 10-80%: <b>{row.get('FastCharge_Min_10_80', 'N/A')} mins</b></div>
+                            </div>
                         </div>
                     </div>
                     """,
@@ -1120,7 +1162,7 @@ with tab1:
                   use_container_width=True,
               ):
                 st.session_state["selected_compare"].remove(row["Full_Name"])
-                st.rerun()  # Fragment အတွင်းသာ Rerun ဖြစ်ပါမည်
+                st.rerun()
             else:
               if st.button(
                   "➕ Compare",
@@ -1136,7 +1178,7 @@ with tab1:
                   st.session_state["selected_compare"].append(
                       row["Full_Name"]
                   )
-                  st.rerun()  # Fragment အတွင်းသာ Rerun ဖြစ်ပါမည်
+                  st.rerun()
 
           with btn_c2:
             if st.button(
@@ -1146,9 +1188,6 @@ with tab1:
             ):
               show_car_details(row)
 
-      # ---------------------------------------------------------
-      # BOTTOM FLOATING DRAWER BAR FOR COMPARE
-      # ---------------------------------------------------------
       if st.session_state["selected_compare"]:
         st.markdown("---")
         with st.container(border=True):
@@ -1177,7 +1216,6 @@ with tab1:
     else:
       st.warning("No vehicles match your search criteria.")
 
-  # Catalog Fragment ကို ခေါ်ယူပြသခြင်း
   render_ev_catalog(filtered_df)
 
 # ---------------------------------------------------------
@@ -1431,271 +1469,286 @@ with tab_loan:
 # ---------------------------------------------------------
 # TAB 5: POSTGRESQL ADMIN MANAGEMENT PANEL
 # ---------------------------------------------------------
-with tab_admin:
-  st.subheader("🛠️ PostgreSQL Admin Management Panel")
-  admin_pass = st.text_input(
-      "🔐 Admin Password ထည့်သွင်းပါ:", type="password", key="admin_pass_input"
-  )
-  expected_pass = st.secrets.get("admin", {}).get("password", "admin123")
+if is_admin_url:
+  with tab_admin:
+    st.subheader("🛠️ PostgreSQL Admin Management Panel")
+    admin_pass = st.text_input(
+        "🔐 Admin Password ထည့်သွင်းပါ:", type="password", key="admin_pass_input"
+    )
+    expected_pass = st.secrets.get("admin", {}).get("password", "admin123")
 
-  if admin_pass == expected_pass:
-    st.success("✅ Admin Authorization Approved!")
+    if admin_pass == expected_pass:
+      st.success("✅ Admin Authorization Approved!")
 
-    admin_sub_tab1, admin_sub_tab2, admin_sub_tab3, admin_sub_tab4 = st.tabs([
-        "📥 Bulk CSV Upload",
-        "➕ Add Vehicle",
-        "✏️ Edit Vehicle Record",
-        "🗄️ Manage Records",
-    ])
-
-    with admin_sub_tab1:
-      uploaded_file = st.file_uploader(
-          "Upload CSV / XLSX File", type=["csv", "xlsx"]
+      admin_sub_tab1, admin_sub_tab2, admin_sub_tab3, admin_sub_tab4 = (
+          st.tabs([
+              "📥 Bulk CSV Upload",
+              "➕ Add Vehicle",
+              "✏️ Edit Vehicle Record",
+              "🗄️ Manage Records",
+          ])
       )
-      if uploaded_file is not None:
-        upload_df = (
-            pd.read_csv(uploaded_file)
-            if uploaded_file.name.endswith(".csv")
-            else pd.read_excel(uploaded_file)
+
+      with admin_sub_tab1:
+        uploaded_file = st.file_uploader(
+            "Upload CSV / XLSX File", type=["csv", "xlsx"]
         )
-        st.dataframe(upload_df.head(5), use_container_width=True)
-        if st.button("🚀 PostgreSQL သို့ Data များ တိုက်ရိုက် Upload တင်မည်"):
-          try:
-            db_col_map = {
-                "Image": "image_url",
-                "Brand": "brand",
-                "Model": "model",
-                "Seats": "seats",
-                "Price_USD": "price_usd",
-                "Range_KM": "range_km",
-                "Battery_kWh": "battery_kwh",
-                "Weight_KG": "weight_kg",
-                "FastCharge_KW": "fastcharge_kw",
-                "Acceleration_0_100": "acceleration_0_100",
-                "FastCharge_Min_10_80": "fastcharge_min_10_80",
-            }
-            upload_df.rename(columns=db_col_map, inplace=True)
-            upload_df.to_sql(
-                "ev_vehicles", con=engine, if_exists="append", index=False
-            )
-            st.session_state["noti_msg"] = (
-                f"📥 Bulk Data ({len(upload_df)} စီး) ကို Upload တင်ပြီးပါပြီ!"
-            )
-            st.cache_data.clear()
-            st.rerun()
-          except Exception as e:
-            st.error(f"❌ Upload Error: {e}")
-
-    with admin_sub_tab2:
-      st.markdown("#### EV Vehicle Data အသစ် ထည့်သွင်းရန် (Validation ပါဝင်သည်)")
-      with st.form("add_single_ev_form", clear_on_submit=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
-          brand = st.text_input("Brand (ဥပမာ - BYD)")
-          model = st.text_input("Model (ဥပမာ - Atto 3)")
-          seats = st.number_input("Seats", min_value=1, max_value=10, value=5)
-          price_usd = st.number_input(
-              "Price ($ USD)", min_value=0.0, step=500.0, value=38000.0
+        if uploaded_file is not None:
+          upload_df = (
+              pd.read_csv(uploaded_file)
+              if uploaded_file.name.endswith(".csv")
+              else pd.read_excel(uploaded_file)
           )
-          range_km = st.number_input("Range (KM)", min_value=0, step=10, value=420)
-
-        with col_b:
-          battery_kwh = st.number_input(
-              "Battery (kWh)", min_value=0.0, step=1.0, value=60.4
-          )
-          weight_kg = st.number_input(
-              "Weight (KG)", min_value=0, step=50, value=1750
-          )
-          fastcharge_kw = st.number_input(
-              "Fast Charge Speed (kW)", min_value=0, step=5, value=88
-          )
-          fastcharge_min_10_80 = st.number_input(
-              "Charging Time 10-80% (Mins)", min_value=0, step=1, value=30
-          )
-          acceleration = st.number_input(
-              "0-100 km/h (s)", min_value=0.0, step=0.1, value=7.3
-          )
-          image_url = st.text_input(
-              "Image URL Link",
-              value="https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=600&h=400&fit=crop",
-          )
-
-        submit_ev = st.form_submit_button("💾 Save to Database")
-
-        if submit_ev:
-          if not brand.strip() or not model.strip():
-            st.error("⚠️ Brand နှင့် Model အမည် ဖြည့်သွင်းရန် လိုအပ်ပါသည်။")
-          elif not validate_url(image_url):
-            st.error(
-                "⚠️ မှန်ကန်သော Image URL Link (http/https) ထည့်သွင်းပေးပါ။"
-            )
-          elif price_usd <= 0 or range_km <= 0 or battery_kwh <= 0:
-            st.error(
-                "⚠️ Price, Range နှင့် Battery Value များသည် 0 ထက် ကြီးရပါမည်။"
-            )
-          else:
-            insert_query = text("""
-                            INSERT INTO ev_vehicles (image_url, brand, model, seats, price_usd, range_km, battery_kwh, weight_kg, fastcharge_kw, acceleration_0_100, fastcharge_min_10_80)
-                            VALUES (:image_url, :brand, :model, :seats, :price_usd, :range_km, :battery_kwh, :weight_kg, :fastcharge_kw, :acceleration, :fastcharge_min_10_80)
-                        """)
+          st.dataframe(upload_df.head(5), use_container_width=True)
+          if st.button("🚀 PostgreSQL သို့ Data များ တိုက်ရိုက် Upload တင်မည်"):
             try:
-              with engine.begin() as conn:
-                conn.execute(
-                    insert_query,
-                    {
-                        "image_url": image_url,
-                        "brand": brand,
-                        "model": model,
-                        "seats": seats,
-                        "price_usd": price_usd,
-                        "range_km": range_km,
-                        "battery_kwh": battery_kwh,
-                        "weight_kg": weight_kg,
-                        "fastcharge_kw": fastcharge_kw,
-                        "acceleration": acceleration,
-                        "fastcharge_min_10_80": fastcharge_min_10_80,
-                    },
-                )
+              db_col_map = {
+                  "Image": "image_url",
+                  "Brand": "brand",
+                  "Model": "model",
+                  "Seats": "seats",
+                  "Price_USD": "price_usd",
+                  "Range_KM": "range_km",
+                  "Battery_kWh": "battery_kwh",
+                  "Weight_KG": "weight_kg",
+                  "FastCharge_KW": "fastcharge_kw",
+                  "Acceleration_0_100": "acceleration_0_100",
+                  "FastCharge_Min_10_80": "fastcharge_min_10_80",
+              }
+              upload_df.rename(columns=db_col_map, inplace=True)
+              upload_df.to_sql(
+                  "ev_vehicles", con=engine, if_exists="append", index=False
+              )
               st.session_state["noti_msg"] = (
-                  f"🎉 🚘 {brand} {model} ကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ!"
+                  f"📥 Bulk Data ({len(upload_df)} စီး) ကို Upload တင်ပြီးပါပြီ!"
               )
               st.cache_data.clear()
               st.rerun()
             except Exception as e:
-              st.error(f"❌ Database Error: {e}")
+              st.error(f"❌ Upload Error: {e}")
 
-    with admin_sub_tab3:
-      st.markdown("#### ✏️ Existing Vehicle Data ပြင်ဆင်ရန် (Update Record)")
-      current_db_df = load_data_from_db()
-
-      if not current_db_df.empty:
-        car_options = {
-            f"ID {row['id']}: {row['Brand']} {row['Model']}": row["id"]
-            for _, row in current_db_df.iterrows()
-        }
-        selected_car_str = st.selectbox(
-            "✏️ ပြင်ဆင်လိုသည့် EV ကားကို ရွေးချယ်ပါ:",
-            options=list(car_options.keys()),
+      with admin_sub_tab2:
+        st.markdown(
+            "#### EV Vehicle Data အသစ် ထည့်သွင်းရန် (Validation ပါဝင်သည်)"
         )
-        selected_id = car_options[selected_car_str]
-
-        edit_row = current_db_df[current_db_df["id"] == selected_id].iloc[0]
-
-        with st.form("edit_ev_form"):
-          col_e1, col_e2 = st.columns(2)
-          with col_e1:
-            e_brand = st.text_input("Brand", value=str(edit_row["Brand"]))
-            e_model = st.text_input("Model", value=str(edit_row["Model"]))
-            e_seats = st.number_input(
-                "Seats", min_value=1, max_value=10, value=int(edit_row["Seats"])
+        with st.form("add_single_ev_form", clear_on_submit=True):
+          col_a, col_b = st.columns(2)
+          with col_a:
+            brand = st.text_input("Brand (ဥပမာ - BYD)")
+            model = st.text_input("Model (ဥပမာ - Atto 3)")
+            seats = st.number_input("Seats", min_value=1, max_value=10, value=5)
+            price_usd = st.number_input(
+                "Price ($ USD)", min_value=0.0, step=500.0, value=38000.0
             )
-            e_price = st.number_input(
-                "Price ($ USD)",
-                min_value=0.0,
-                value=float(edit_row["Price_USD"]),
-            )
-            e_range = st.number_input(
-                "Range (KM)", min_value=0, value=int(edit_row["Range_KM"])
+            range_km = st.number_input(
+                "Range (KM)", min_value=0, step=10, value=420
             )
 
-          with col_e2:
-            e_battery = st.number_input(
-                "Battery (kWh)",
-                min_value=0.0,
-                value=float(edit_row["Battery_kWh"]),
+          with col_b:
+            battery_kwh = st.number_input(
+                "Battery (kWh)", min_value=0.0, step=1.0, value=60.4
             )
-            e_weight = st.number_input(
-                "Weight (KG)", min_value=0, value=int(edit_row["Weight_KG"])
+            weight_kg = st.number_input(
+                "Weight (KG)", min_value=0, step=50, value=1750
             )
-            e_fc_kw = st.number_input(
-                "Fast Charge (kW)",
-                min_value=0,
-                value=int(edit_row["FastCharge_KW"]),
+            fastcharge_kw = st.number_input(
+                "Fast Charge Speed (kW)", min_value=0, step=5, value=88
             )
-            e_fc_min = st.number_input(
-                "Charge Time 10-80% (Mins)",
-                min_value=0,
-                value=int(edit_row.get("FastCharge_Min_10_80", 30)),
+            fastcharge_min_10_80 = st.number_input(
+                "Charging Time 10-80% (Mins)", min_value=0, step=1, value=30
             )
-            e_accel = st.number_input(
-                "0-100 km/h (s)",
-                min_value=0.0,
-                value=float(edit_row["Acceleration_0_100"]),
+            acceleration = st.number_input(
+                "0-100 km/h (s)", min_value=0.0, step=0.1, value=7.3
             )
-            e_img = st.text_input("Image URL Link", value=str(edit_row["Image"]))
+            image_url = st.text_input(
+                "Image URL Link",
+                value="https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=600&h=400&fit=crop",
+            )
 
-          btn_update = st.form_submit_button("🔄 Update Data")
+          submit_ev = st.form_submit_button("💾 Save to Database")
 
-          if btn_update:
-            if not e_brand.strip() or not e_model.strip():
+          if submit_ev:
+            if not brand.strip() or not model.strip():
               st.error("⚠️ Brand နှင့် Model အမည် ဖြည့်သွင်းရန် လိုအပ်ပါသည်။")
-            elif not validate_url(e_img):
-              st.error("⚠️ မှန်ကန်သော Image URL Link ထည့်သွင်းပေးပါ။")
+            elif not validate_url(image_url):
+              st.error(
+                  "⚠️ မှန်ကန်သော Image URL Link (http/https) ထည့်သွင်းပေးပါ။"
+              )
+            elif price_usd <= 0 or range_km <= 0 or battery_kwh <= 0:
+              st.error(
+                  "⚠️ Price, Range နှင့် Battery Value များသည် 0 ထက်"
+                  " ကြီးရပါမည်။"
+              )
             else:
-              update_query = text("""
-                                UPDATE ev_vehicles 
-                                SET brand=:brand, model=:model, seats=:seats, price_usd=:price, 
-                                    range_km=:range, battery_kwh=:battery, weight_kg=:weight, 
-                                    fastcharge_kw=:fc_kw, fastcharge_min_10_80=:fc_min, 
-                                    acceleration_0_100=:accel, image_url=:img
-                                WHERE id=:id
-                            """)
+              insert_query = text("""
+                              INSERT INTO ev_vehicles (image_url, brand, model, seats, price_usd, range_km, battery_kwh, weight_kg, fastcharge_kw, acceleration_0_100, fastcharge_min_10_80)
+                              VALUES (:image_url, :brand, :model, :seats, :price_usd, :range_km, :battery_kwh, :weight_kg, :fastcharge_kw, :acceleration, :fastcharge_min_10_80)
+                          """)
               try:
                 with engine.begin() as conn:
                   conn.execute(
-                      update_query,
+                      insert_query,
                       {
-                          "brand": e_brand,
-                          "model": e_model,
-                          "seats": e_seats,
-                          "price": e_price,
-                          "range": e_range,
-                          "battery": e_battery,
-                          "weight": e_weight,
-                          "fc_kw": e_fc_kw,
-                          "fc_min": e_fc_min,
-                          "accel": e_accel,
-                          "img": e_img,
-                          "id": selected_id,
+                          "image_url": image_url,
+                          "brand": brand,
+                          "model": model,
+                          "seats": seats,
+                          "price_usd": price_usd,
+                          "range_km": range_km,
+                          "battery_kwh": battery_kwh,
+                          "weight_kg": weight_kg,
+                          "fastcharge_kw": fastcharge_kw,
+                          "acceleration": acceleration,
+                          "fastcharge_min_10_80": fastcharge_min_10_80,
                       },
                   )
                 st.session_state["noti_msg"] = (
-                    f"🎉 Record ID ({selected_id}) ကို အောင်မြင်စွာ Update"
-                    " ပြုလုပ်ပြီးပါပြီ!"
+                    f"🎉 🚘 {brand} {model} ကို အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ!"
                 )
                 st.cache_data.clear()
                 st.rerun()
               except Exception as e:
-                st.error(f"❌ Update Error: {e}")
+                st.error(f"❌ Database Error: {e}")
 
-    with admin_sub_tab4:
-      st.markdown("#### 🗄️ Database Record ဖျက်ထုတ်ခြင်း")
-      current_db_df = load_data_from_db()
-      st.dataframe(current_db_df, use_container_width=True)
+      with admin_sub_tab3:
+        st.markdown(
+            "#### ✏️ Existing Vehicle Data ပြင်ဆင်ရန် (Update Record)"
+        )
+        current_db_df = load_data_from_db()
 
-      st.divider()
-      delete_id = st.number_input(
-          "ဖျက်လိုသော ID ရိုက်ထည့်ပါ:", min_value=1, step=1
-      )
-      if st.button("❌ Record ကို ဖျက်မည်"):
-        try:
-          with engine.begin() as conn:
-            conn.execute(
-                text("DELETE FROM ev_vehicles WHERE id = :id"),
-                {"id": delete_id},
-            )
-            conn.execute(
-                text("DELETE FROM ev_reviews WHERE vehicle_id = :id"),
-                {"id": delete_id},
-            )
-          st.session_state["noti_msg"] = (
-              f"🗑️ Record ID ({delete_id}) နှင့် သက်ဆိုင်သော Review များကို"
-              " ဖျက်ပြီးပါပြီ!"
+        if not current_db_df.empty:
+          car_options = {
+              f"ID {row['id']}: {row['Brand']} {row['Model']}": row["id"]
+              for _, row in current_db_df.iterrows()
+          }
+          selected_car_str = st.selectbox(
+              "✏️ ပြင်ဆင်လိုသည့် EV ကားကို ရွေးချယ်ပါ:",
+              options=list(car_options.keys()),
           )
-          st.cache_data.clear()
-          st.rerun()
-        except Exception as e:
-          st.error(f"❌ Delete Error: {e}")
+          selected_id = car_options[selected_car_str]
+
+          edit_row = current_db_df[current_db_df["id"] == selected_id].iloc[0]
+
+          with st.form("edit_ev_form"):
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+              e_brand = st.text_input("Brand", value=str(edit_row["Brand"]))
+              e_model = st.text_input("Model", value=str(edit_row["Model"]))
+              e_seats = st.number_input(
+                  "Seats",
+                  min_value=1,
+                  max_value=10,
+                  value=int(edit_row["Seats"]),
+              )
+              e_price = st.number_input(
+                  "Price ($ USD)",
+                  min_value=0.0,
+                  value=float(edit_row["Price_USD"]),
+              )
+              e_range = st.number_input(
+                  "Range (KM)", min_value=0, value=int(edit_row["Range_KM"])
+              )
+
+            with col_e2:
+              e_battery = st.number_input(
+                  "Battery (kWh)",
+                  min_value=0.0,
+                  value=float(edit_row["Battery_kWh"]),
+              )
+              e_weight = st.number_input(
+                  "Weight (KG)", min_value=0, value=int(edit_row["Weight_KG"])
+              )
+              e_fc_kw = st.number_input(
+                  "Fast Charge (kW)",
+                  min_value=0,
+                  value=int(edit_row["FastCharge_KW"]),
+              )
+              e_fc_min = st.number_input(
+                  "Charge Time 10-80% (Mins)",
+                  min_value=0,
+                  value=int(edit_row.get("FastCharge_Min_10_80", 30)),
+              )
+              e_accel = st.number_input(
+                  "0-100 km/h (s)",
+                  min_value=0.0,
+                  value=float(edit_row["Acceleration_0_100"]),
+              )
+              e_img = st.text_input(
+                  "Image URL Link", value=str(edit_row["Image"])
+              )
+
+            btn_update = st.form_submit_button("🔄 Update Data")
+
+            if btn_update:
+              if not e_brand.strip() or not e_model.strip():
+                st.error("⚠️ Brand နှင့် Model အမည် ဖြည့်သွင်းရန် လိုအပ်ပါသည်။")
+              elif not validate_url(e_img):
+                st.error("⚠️ မှန်ကန်သော Image URL Link ထည့်သွင်းပေးပါ။")
+              else:
+                update_query = text("""
+                                  UPDATE ev_vehicles 
+                                  SET brand=:brand, model=:model, seats=:seats, price_usd=:price, 
+                                      range_km=:range, battery_kwh=:battery, weight_kg=:weight, 
+                                      fastcharge_kw=:fc_kw, fastcharge_min_10_80=:fc_min, 
+                                      acceleration_0_100=:accel, image_url=:img
+                                  WHERE id=:id
+                              """)
+                try:
+                  with engine.begin() as conn:
+                    conn.execute(
+                        update_query,
+                        {
+                            "brand": e_brand,
+                            "model": e_model,
+                            "seats": e_seats,
+                            "price": e_price,
+                            "range": e_range,
+                            "battery": e_battery,
+                            "weight": e_weight,
+                            "fc_kw": e_fc_kw,
+                            "fc_min": e_fc_min,
+                            "accel": e_accel,
+                            "img": e_img,
+                            "id": selected_id,
+                        },
+                    )
+                  st.session_state["noti_msg"] = (
+                      f"🎉 Record ID ({selected_id}) ကို အောင်မြင်စွာ Update"
+                      " ပြုလုပ်ပြီးပါပြီ!"
+                  )
+                  st.cache_data.clear()
+                  st.rerun()
+                except Exception as e:
+                  st.error(f"❌ Update Error: {e}")
+
+      with admin_sub_tab4:
+        st.markdown("#### 🗄️ Database Record ဖျက်ထုတ်ခြင်း")
+        current_db_df = load_data_from_db()
+        st.dataframe(current_db_df, use_container_width=True)
+
+        st.divider()
+        delete_id = st.number_input(
+            "ဖျက်လိုသော ID ရိုက်ထည့်ပါ:", min_value=1, step=1
+        )
+        if st.button("❌ Record ကို ဖျက်မည်"):
+          try:
+            with engine.begin() as conn:
+              conn.execute(
+                  text("DELETE FROM ev_vehicles WHERE id = :id"),
+                  {"id": delete_id},
+              )
+              conn.execute(
+                  text("DELETE FROM ev_reviews WHERE vehicle_id = :id"),
+                  {"id": delete_id},
+              )
+            st.session_state["noti_msg"] = (
+                f"🗑️ Record ID ({delete_id}) နှင့် သက်ဆိုင်သော Review များကို"
+                " ဖျက်ပြီးပါပြီ!"
+            )
+            st.cache_data.clear()
+            st.rerun()
+          except Exception as e:
+            st.error(f"❌ Delete Error: {e}")
 
 # ---------------------------------------------------------
 # 7. GLOBAL NOTIFICATION TOAST DISPATCHER
