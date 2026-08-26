@@ -1015,7 +1015,7 @@ def validate_url(url):
 # ---------------------------------------------------------
 # 6. MAIN NAVIGATION TABS
 # ---------------------------------------------------------
-st.title("⚡ FluxDrive EV Recommendation")
+st.title("⚡ EV FluxDrive")
 
 is_admin_url = st.query_params.get("admin") == "true"
 
